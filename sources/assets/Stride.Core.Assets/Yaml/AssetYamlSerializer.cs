@@ -189,6 +189,8 @@ namespace Stride.Core.Yaml
                             routingSerializer.Prepend(new IdentifiableObjectSerializer());
                             // Prepend the ContextAttributeSerializer just before the routing serializer
                             routingSerializer.Prepend(new ContextAttributeSerializer());
+                            // Prepend the MemberNotNullSerializer at the beginning to be after the ErrorRecoverySerializer
+                            routingSerializer.First.Prepend(new MemberNotNullSerializer());
                             // Prepend the ErrorRecoverySerializer at the beginning
                             routingSerializer.First.Prepend(new ErrorRecoverySerializer());
                         }
