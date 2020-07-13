@@ -736,7 +736,8 @@ namespace Stride.Physics
             previousFrameContacts = previous;
         }
 
-        private void ContactRemoval(ContactPoint contact, PhysicsComponent component0, PhysicsComponent component1)
+        /// <returns>Removed collision if last contact point was removed or null.</returns>
+        private Collision ContactRemoval(ContactPoint contact, PhysicsComponent component0, PhysicsComponent component1)
         {
             Collision existingPair = null;
             foreach (var x in component0.Collisions)
@@ -753,7 +754,7 @@ namespace Stride.Physics
                 //should not happen?
                 Log.Warning("Pair not present.");
 #endif
-                return;
+                return null;
             }
 
             if (existingPair.Contacts.Contains(contact))
@@ -768,6 +769,7 @@ namespace Stride.Physics
                     component0.Collisions.Remove(existingPair);
                     component1.Collisions.Remove(existingPair);
                     removedCollisionsCache.Add(existingPair);
+                    return existingPair;
                 }
             }
             else
@@ -777,6 +779,7 @@ namespace Stride.Physics
                 Log.Warning("Contact not in pair.");
 #endif
             }
+            return null;
         }
 
         internal void EndContactTesting()
@@ -950,7 +953,20 @@ namespace Stride.Physics
                 if (component == component0 || component == component1)
                 {
                     currentToRemove.Add(currentFrameContact);
-                    ContactRemoval(currentFrameContact, component0, component1);
+                    var collision = ContactRemoval(currentFrameContact, component0, component1);
+
+                    if(collision != null)
+                    {
+                        while (collision.ColliderA.PairEndedChannel.Balance < 0)
+                        {
+                            collision.ColliderA.PairEndedChannel.Send(collision);
+                        }
+
+                        while (collision.ColliderB.PairEndedChannel.Balance < 0)
+                        {
+                            collision.ColliderB.PairEndedChannel.Send(collision);
+                        }
+                    }
                 }
             }
 
