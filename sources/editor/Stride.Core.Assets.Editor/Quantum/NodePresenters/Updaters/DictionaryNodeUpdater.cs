@@ -7,9 +7,13 @@ using Stride.Core.Reflection;
 
 namespace Stride.Core.Assets.Editor.Quantum.NodePresenters.Updaters
 {
+    /// <summary>
+    /// Updates nodes that hold dictionaries with the dictionary's key type.
+    /// </summary>
     public sealed class DictionaryNodeUpdater : NodePresenterUpdaterBase
     {
         public static PropertyKey<Type> DictionaryNodeKeyType = new PropertyKey<Type>(nameof(DictionaryNodeKeyType), typeof(DictionaryNodeUpdater));
+        
         public override void UpdateNode(INodePresenter node)
         {
             if (DictionaryDescriptor.IsDictionary(node.Type))
