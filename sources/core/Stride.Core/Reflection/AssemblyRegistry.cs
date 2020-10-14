@@ -15,7 +15,7 @@ namespace Stride.Core.Reflection
     /// </summary>
     public static class AssemblyRegistry
     {
-        public static readonly Logger Log = GlobalLogger.GetLogger("AssemblyRegistry", LogMessageType.Info);
+        private static readonly Lazy<Logger> Log = new Lazy<Logger>(() => GlobalLogger.GetLogger("AssemblyRegistry", LogMessageType.Info));
         private static readonly object Lock = new object();
         private static readonly Dictionary<string, HashSet<Assembly>> MapCategoryToAssemblies = new Dictionary<string, HashSet<Assembly>>();
         private static readonly Dictionary<Assembly, HashSet<string>> MapAssemblyToCategories = new Dictionary<Assembly, HashSet<string>>();
@@ -208,7 +208,7 @@ namespace Stride.Core.Reflection
                 {
                     if (string.IsNullOrWhiteSpace(category))
                     {
-                        Log.Error($"Invalid empty category for assembly [{assembly}]");
+                        Log.Value.Error($"Invalid empty category for assembly [{assembly}]");
                         continue;
                     }
 
