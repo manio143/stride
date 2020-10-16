@@ -27,9 +27,14 @@ namespace Stride.Core.Settings
                     if (scanTypes != null &&
                         scanTypes.Types.TryGetValue(typeof(IAppSettingsProvider), out var providerTypes))
                     {
-                        var instance = (IAppSettingsProvider)Activator.CreateInstance(providerTypes[0]);
-                        settings = instance.LoadAppSettings();
-                        return settings;
+                        foreach (var type in providerTypes)
+                            if (!type.IsAbstract &&
+                                type.GetConstructor(Type.EmptyTypes) != null)
+                            {
+                                var instance = (IAppSettingsProvider)Activator.CreateInstance(type);
+                                settings = instance.LoadAppSettings();
+                                return settings;
+                            }
                     }
                 }
 
