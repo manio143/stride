@@ -22,17 +22,16 @@ namespace Stride.Core.Settings
                     return settings;
 
                 foreach (var assembly in AssemblyRegistry.FindAll())
-                    foreach (var type in assembly.GetTypes())
-                        if (typeof(IAppSettingsProvider).IsAssignableFrom(type))
-                        {
-                            var ctor = type.GetConstructor(new Type[0]);
-                            if (ctor != null)
-                            {
-                                var instance = (IAppSettingsProvider)ctor.Invoke(new object[0]);
-                                settings = instance.LoadAppSettings();
-                                return settings;
-                            }
-                        }
+                {
+                    var scanTypes = AssemblyRegistry.GetScanTypes(assembly);
+                    if (scanTypes != null &&
+                        scanTypes.Types.TryGetValue(typeof(IAppSettingsProvider), out var providerTypes))
+                    {
+                        var instance = (IAppSettingsProvider)Activator.CreateInstance(providerTypes[0]);
+                        settings = instance.LoadAppSettings();
+                        return settings;
+                    }
+                }
 
                 settings = new AppSettings();
                 return settings;
