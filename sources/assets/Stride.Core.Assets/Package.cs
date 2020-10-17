@@ -1035,13 +1035,22 @@ namespace Stride.Core.Assets
             }
 
             // Load from csproj
-            if (Container is SolutionProject project && project.FullPath != null && project.Type == ProjectType.Library)
+            if (Container is SolutionProject project && project.FullPath != null)
             {
-                // Check if already loaded
-                // TODO: More advanced cases: unload removed references, etc...
-                var projectReference = new ProjectReference(project.Id, project.FullPath, Core.Assets.ProjectType.Library);
+                if (project.Type == ProjectType.Library)
+                {
+                    // Check if already loaded
+                    // TODO: More advanced cases: unload removed references, etc...
+                    var projectReference = new ProjectReference(project.Id, project.FullPath, Core.Assets.ProjectType.Library);
 
-                LoadAssemblyReferenceInternal(log, loadParameters, assemblyContainer, projectReference, project.TargetPath);
+                    LoadAssemblyReferenceInternal(log, loadParameters, assemblyContainer, projectReference, project.TargetPath);
+                }
+                else
+                {
+                    var projectReference = new ProjectReference(project.Id, project.FullPath, Core.Assets.ProjectType.Executable);
+
+                    LoadAssemblyReferenceInternal(log, loadParameters, assemblyContainer, projectReference, project.TargetPath);
+                }
             }
         }
 
