@@ -45,5 +45,41 @@ namespace Stride.Physics.Tests
             });
             RunGameTest(game);
         }
+
+        [Fact]
+        public void WhenBothEntitiesAreRemoved_NoExceptionIsThrown()
+        {
+            var game = new SendCollisionEndedWhenEntityIsRemovedTest();
+            game.Script.AddTask(async () =>
+            {
+                game.ScreenShotAutomationEnabled = false;
+
+                await game.Script.NextFrame();
+                await game.Script.NextFrame();
+
+                var cube = game.SceneSystem.SceneInstance.RootScene.Entities.First(ent => ent.Name == "Cube");
+                var sphere = game.SceneSystem.SceneInstance.RootScene.Entities.First(ent => ent.Name == "Sphere");
+
+                var cubePhysics = cube.Get<PhysicsComponent>();
+
+                // verify that there is a collision between the sphere and the cube
+                Assert.Single(cubePhysics.Collisions);
+
+                var collisionEndedTask = Task.Run(async () => await cubePhysics.CollisionEnded());
+
+                await game.Script.NextFrame();
+
+                // remove both from the scene
+                sphere.Scene = null;
+                cube.Scene = null;
+
+                await game.Script.NextFrame();
+
+                Assert.True(collisionEndedTask.IsCompleted);
+
+                game.Exit();
+            });
+            RunGameTest(game);
+        }
     }
 }
