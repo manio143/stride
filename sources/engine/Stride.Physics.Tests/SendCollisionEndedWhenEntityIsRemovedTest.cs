@@ -30,7 +30,12 @@ namespace Stride.Physics.Tests
                 // verify that there is a collision between the sphere and the cube
                 Assert.Single(cubePhysics.Collisions);
 
-                var collisionEndedTask = Task.Run(async () => await cubePhysics.CollisionEnded());
+                var collisionEndedTask = Task.Run(async () => {
+                    var collision = await cubePhysics.CollisionEnded();
+                    // when we receive the collision it's actually destroyed already
+                    Assert.Null(collision.ColliderA);
+                    Assert.Null(collision.ColliderB);
+                });
 
                 await game.Script.NextFrame();
 
@@ -65,7 +70,11 @@ namespace Stride.Physics.Tests
                 // verify that there is a collision between the sphere and the cube
                 Assert.Single(cubePhysics.Collisions);
 
-                var collisionEndedTask = Task.Run(async () => await cubePhysics.CollisionEnded());
+                var collisionEndedTask = Task.Run(async () => {
+                    var collision = await cubePhysics.CollisionEnded();
+                    Assert.Null(collision.ColliderA);
+                    Assert.Null(collision.ColliderB);
+                });
 
                 await game.Script.NextFrame();
 
