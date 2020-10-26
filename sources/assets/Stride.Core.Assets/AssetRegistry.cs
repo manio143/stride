@@ -12,6 +12,7 @@ using Stride.Core.Serialization.Contents;
 using Stride.Core.VisualStudio;
 using Stride.Core.Yaml.Serialization;
 using Stride.Core.Serialization;
+using System.Collections.Immutable;
 
 namespace Stride.Core.Assets
 {
@@ -767,6 +768,74 @@ namespace Stride.Core.Assets
                 return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Returns an <see cref="IDisposable"/> object for faster performing batch extension checks.
+        /// </summary>
+        public static ExtensionsAccess AcquireQuickExtensionAccess()
+        {
+            return new ExtensionsAccess(RegisteredAssetFileExtensions, RegisteredDefaultAssetExtension, RegistryLock);
+        }
+
+        public class ExtensionsAccess : IDisposable
+        {
+            /// <summary>
+            /// Creates a new instance of <see cref="ExtensionsAccess"/> and acquires a lock
+            /// on the <see cref="AssetRegistry"/>. Must be disposed!
+            /// </summary>
+            /// <remarks>
+            /// Should not be instantiated outside the <see cref="AssetRegistry"/>.
+            /// </remarks>
+            internal ExtensionsAccess(
+                Dictionary<string, Type> registeredAssetFileExtensions,
+                Dictionary<Type, string> registeredDefualtExtension,
+                object registryLock)
+            {
+                System.Threading.Monitor.Enter(RegistryLock = registryLock);
+                RegisteredAssetFileExtensions = registeredAssetFileExtensions.ToImmutableDictionary();
+                RegisteredDefaultAssetExtension = registeredDefualtExtension.ToImmutableDictionary();
+            }
+
+            private object RegistryLock { get; }
+            private ImmutableDictionary<string, Type> RegisteredAssetFileExtensions { get; }
+            private ImmutableDictionary<Type, string> RegisteredDefaultAssetExtension { get; }
+
+            public bool IsAssetFileExtension(string extension)
+            {
+                if (extension == null) return false;
+                return RegisteredAssetFileExtensions.ContainsKey(extension);
+            }
+
+            public bool IsProjectCodeGeneratorAssetFileExtension(string extension)
+            {
+                return DefaultExtensionForTypeAssignableTo<IProjectFileGeneratorAsset>(extension);
+            }
+
+            public bool IsProjectAssetFileExtension(string extension)
+            {
+                return DefaultExtensionForTypeAssignableTo<IProjectAsset>(extension);
+            }
+
+            private bool DefaultExtensionForTypeAssignableTo<T>(string extension)
+            {
+                if (extension == null) return false;
+                var valid = RegisteredAssetFileExtensions.ContainsKey(extension);
+                if (valid)
+                {
+                    var type = RegisteredDefaultAssetExtension.Where(x => x.Value == extension).Select(x => x.Key).FirstOrDefault();
+                    if (type != null)
+                    {
+                        return typeof(T).IsAssignableFrom(type);
+                    }
+                }
+                return false;
+            }
+
+            public void Dispose()
+            {
+                System.Threading.Monitor.Exit(RegistryLock);
+            }
         }
 
         static AssetRegistry()

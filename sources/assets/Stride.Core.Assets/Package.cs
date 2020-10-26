@@ -22,6 +22,7 @@ using Stride.Core.Reflection;
 using Stride.Core.Serialization;
 using Stride.Core.Yaml;
 using NuGet.ProjectModel;
+using Stride.Core.Threading;
 
 namespace Stride.Core.Assets
 {
@@ -1222,54 +1223,75 @@ namespace Stride.Core.Assets
                 return listFiles;
             }
 
-            // Iterate on each source folders
+            // Iterate on each source folders and lookup all files
+            var assetFiles = new List<FileInfo>();
+            var assetFileSourceFolder = new Dictionary<FileInfo, UDirectory>();
             foreach (var sourceFolder in package.GetDistinctAssetFolderPaths())
             {
-                // Lookup all files
                 foreach (var directory in FileUtility.EnumerateDirectories(sourceFolder, SearchDirection.Down))
                 {
                     var files = directory.GetFiles();
+                    assetFiles.AddRange(files);
 
-                    foreach (var filePath in files)
-                    {
-                        // Don't load package via this method
-                        if (filePath.FullName.EndsWith(PackageFileExtension))
-                        {
-                            continue;
-                        }
-
-                        // Make an absolute path from the root of this package
-                        var fileUPath = new UFile(filePath.FullName);
-                        if (fileUPath.GetFileExtension() == null)
-                        {
-                            continue;
-                        }
-
-                        // If this kind of file an asset file?
-                        var ext = fileUPath.GetFileExtension();
-                        // Adjust extensions for Stride rename
-                        ext = ext.Replace(".xk", ".sd");
-
-                        //make sure to add default shaders in this case, since we don't have a csproj for them
-                        if (AssetRegistry.IsProjectCodeGeneratorAssetFileExtension(ext) && (!(package.Container is SolutionProject) || package.IsSystem))
-                        {
-                            listFiles.Add(new PackageLoadingAssetFile(fileUPath, sourceFolder) { CachedFileSize = filePath.Length });
-                            continue;
-                        }
-
-                        //project source code assets follow the csproj pipeline
-                        var isAsset = listUnregisteredAssets
-                            ? ext.StartsWith(".sd", StringComparison.InvariantCultureIgnoreCase)
-                            : AssetRegistry.IsAssetFileExtension(ext);
-                        if (!isAsset || AssetRegistry.IsProjectAssetFileExtension(ext))
-                        {
-                            continue;
-                        }
-
-                        var loadingAsset = new PackageLoadingAssetFile(fileUPath, sourceFolder) { CachedFileSize = filePath.Length };
-                        listFiles.Add(loadingAsset);
-                    }
+                    foreach (var file in files)
+                        assetFileSourceFolder.Add(file, sourceFolder);
                 }
+            }
+
+            // Acquire a single lock on the asset registry to check file extensions.
+            // The asset registry should not be modified during this iteration anyway,
+            // using a single monitor allows parallelization as the extension queries
+            // don't modify the underlying collections.
+            using (var extensionsRegistry = AssetRegistry.AcquireQuickExtensionAccess())
+            {
+                var results = new PackageLoadingAssetFile[assetFiles.Count];
+                
+                Dispatcher.For(0, assetFiles.Count, idx =>
+                {
+                    var filePath = assetFiles[idx];
+                    var sourceFolder = assetFileSourceFolder[filePath];
+
+                    // Don't load package via this method
+                    if (filePath.FullName.EndsWith(PackageFileExtension))
+                    {
+                        return;
+                    }
+
+                    // Make an absolute path from the root of this package
+                    var fileUPath = new UFile(filePath.FullName);
+                    if (fileUPath.GetFileExtension() == null)
+                    {
+                        return;
+                    }
+
+                    // If this kind of file an asset file?
+                    var ext = fileUPath.GetFileExtension();
+                    // Adjust extensions for Stride rename
+                    ext = ext.Replace(".xk", ".sd");
+
+                    //make sure to add default shaders in this case, since we don't have a csproj for them
+                    if (extensionsRegistry.IsProjectCodeGeneratorAssetFileExtension(ext) && (!(package.Container is SolutionProject) || package.IsSystem))
+                    {
+                        results[idx] = new PackageLoadingAssetFile(fileUPath, sourceFolder) { CachedFileSize = filePath.Length };
+                        return;
+                    }
+
+                    //project source code assets follow the csproj pipeline
+                    var isAsset = listUnregisteredAssets
+                        ? ext.StartsWith(".sd", StringComparison.InvariantCultureIgnoreCase)
+                        : extensionsRegistry.IsAssetFileExtension(ext);
+                    if (!isAsset || extensionsRegistry.IsProjectAssetFileExtension(ext))
+                    {
+                        return;
+                    }
+
+                    var loadingAsset = new PackageLoadingAssetFile(fileUPath, sourceFolder) { CachedFileSize = filePath.Length };
+                    results[idx] = loadingAsset;
+                });
+
+                foreach (var result in results)
+                    if (result != null)
+                        listFiles.Add(result);
             }
 
             //find also assets in the csproj
