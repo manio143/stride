@@ -15,7 +15,7 @@ namespace Stride.Core.Reflection
     /// </summary>
     public static class AssemblyRegistry
     {
-        private static readonly Lazy<Logger> Log = new Lazy<Logger>(() => GlobalLogger.GetLogger("AssemblyRegistry", LogMessageType.Info));
+        private static readonly Lazy<Logger> Log = new Lazy<Logger>(() => GlobalLogger.GetLogger("AssemblyRegistry"));
         private static readonly object Lock = new object();
         private static readonly Dictionary<string, HashSet<Assembly>> MapCategoryToAssemblies = new Dictionary<string, HashSet<Assembly>>();
         private static readonly Dictionary<Assembly, HashSet<string>> MapAssemblyToCategories = new Dictionary<Assembly, HashSet<string>>();
