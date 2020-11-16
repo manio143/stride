@@ -1048,9 +1048,21 @@ namespace Stride.Core.Assets
                 }
                 else
                 {
-                    var projectReference = new ProjectReference(project.Id, project.FullPath, Core.Assets.ProjectType.Executable);
+                    switch (project.Platform)
+                    {
+                        case PlatformType.Windows:
+                        case PlatformType.Linux:
+                        case PlatformType.macOS:
+                            var projectReference = new ProjectReference(project.Id, project.FullPath, Core.Assets.ProjectType.Executable);
 
-                    LoadAssemblyReferenceInternal(log, loadParameters, assemblyContainer, projectReference, project.TargetPath);
+                            LoadAssemblyReferenceInternal(log, loadParameters, assemblyContainer, projectReference, project.TargetPath);
+                            break;
+                        case PlatformType.Android:
+                        case PlatformType.iOS:
+                        case PlatformType.UWP:
+                            // You usually wouldn't have access to the executable assembly directly
+                            break;
+                    }
                 }
             }
         }
