@@ -56,6 +56,8 @@ namespace Stride.Core.Yaml.Serialization.Serializers
     [YamlSerializerFactory(YamlSerializerFactoryAttribute.Default)]
     public class ObjectSerializer : IYamlSerializable, IYamlSerializableFactory
     {
+        public static readonly PropertyKey<Type> MemberSerializerOverride = new PropertyKey<Type>(nameof(MemberSerializerOverride), typeof(ObjectSerializer));
+
         /// <inheritdoc/>
         public virtual IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
@@ -300,6 +302,14 @@ namespace Stride.Core.Yaml.Serialization.Serializers
             if (memberAccessor == null)
             {
                 return ReadMemberState.Error;
+            }
+
+            // Check for serializer override
+            foreach (var attr in memberAccessor.GetCustomAttributes<MemberYamlSerializerAttribute>(true))
+            {
+                if (!typeof(IYamlSerializable).IsAssignableFrom(attr.SerializerType))
+                    throw new InvalidOperationException($"The specified YAML serializer for '{memberAccessor.Name}' in {memberAccessor.DeclaringType} does not implement {nameof(IYamlSerializable)}.");
+                objectContext.SerializerContext.Properties.Add(MemberSerializerOverride, attr.SerializerType);
             }
 
             // Read the value according to the type
