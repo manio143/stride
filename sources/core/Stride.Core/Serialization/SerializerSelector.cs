@@ -18,8 +18,8 @@ namespace Stride.Core.Serialization
         private readonly string[] profiles;
         private Dictionary<Type, DataSerializer> dataSerializersByType = new Dictionary<Type, DataSerializer>();
         private Dictionary<ObjectId, DataSerializer> dataSerializersByTypeId = new Dictionary<ObjectId, DataSerializer>();
-        private Dictionary<Type, (Type, ObjectId)> genericDataSerializersByType = new Dictionary<Type, (Type, ObjectId)>();
-        private Dictionary<ObjectId, Type> genericDataSerializersByTypeId = new Dictionary<ObjectId, Type>();
+        private Dictionary<Type, Type> genericDataSerializersByType = new Dictionary<Type, Type>();
+        private Dictionary<(Type, string), DataSerializer> customProfileSerializers = new Dictionary<(Type, string), DataSerializer>();
 
         /// <summary>
         /// Gets the default instance of Serializer.
@@ -166,19 +166,21 @@ namespace Stride.Core.Serialization
                     var genericArguments = type.GetGenericArguments();
                     if (genericDataSerializersByType.TryGetValue(genericDefinition, out var serializerTypeWithId))
                     {
-                        var serializerType = serializerTypeWithId.Item1;
-                        var objectId = serializerTypeWithId.Item2;
+                        var serializerType = serializerTypeWithId;
 
                         try
                         {
                             dataSerializer = (DataSerializer)Activator.CreateInstance(serializerType.MakeGenericType(genericArguments));
-                            dataSerializer.SerializationTypeId = objectId;
 
+                            // fill in type id from newly created type's full name
                             EnsureSerializationTypeId(dataSerializer);
 
-                            // we cache the new serializer for future uses
-                            dataSerializersByType[type] = dataSerializer;
-                            dataSerializersByTypeId[objectId] = dataSerializer;
+                            lock (@lock)
+                            {
+                                // we cache the new serializer for future uses
+                                dataSerializersByType[type] = dataSerializer;
+                                dataSerializersByTypeId[dataSerializer.SerializationTypeId] = dataSerializer;
+                            }
                         }
                         catch
                         {
@@ -261,8 +263,7 @@ namespace Stride.Core.Serialization
             {
                 var newDataSerializersByType = new Dictionary<Type, DataSerializer>();
                 var newDataSerializersByTypeId = new Dictionary<ObjectId, DataSerializer>();
-                var newGenericDataSerializersByType = new Dictionary<Type, (Type, ObjectId)>();
-                var newGenericDataSerializersByTypeId = new Dictionary<ObjectId, Type>();
+                var newGenericDataSerializersByType = new Dictionary<Type, Type>();
 
                 // Create list of combined serializers
                 var combinedSerializers = new Dictionary<Type, AssemblySerializerEntry>();
@@ -317,22 +318,16 @@ namespace Stride.Core.Serialization
                     }
                     else
                     {
-                        Type genericDataSerializerType = null;
-                        (Type type, ObjectId id) genericEntry;
-                        if(!genericDataSerializersByType.TryGetValue(serializer.Key, out genericEntry))
+                        Type genericDataSerializerType;
+                        if(!genericDataSerializersByType.TryGetValue(serializer.Key, out genericDataSerializerType))
                         {
                             if(serializer.Value.SerializerType != null)
                             {
                                 genericDataSerializerType = serializer.Value.SerializerType;
                             }
                         }
-                        else
-                        {
-                            genericDataSerializerType = genericEntry.type;
-                        }
 
-                        newGenericDataSerializersByType[serializer.Key] = (genericDataSerializerType, serializer.Value.Id);
-                        newGenericDataSerializersByTypeId[serializer.Value.Id] = genericDataSerializerType;
+                        newGenericDataSerializersByType[serializer.Key] = genericDataSerializerType;
                     }
                 }
 
@@ -346,7 +341,6 @@ namespace Stride.Core.Serialization
                         dataSerializersByType = newDataSerializersByType;
                         dataSerializersByTypeId = newDataSerializersByTypeId;
                         genericDataSerializersByType = newGenericDataSerializersByType;
-                        genericDataSerializersByTypeId = newGenericDataSerializersByTypeId;
                     }
 
                     invalidated = false;

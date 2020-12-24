@@ -18,7 +18,6 @@ namespace Stride.Core.Assets
         /// <summary>
         /// Value of the associated data.
         /// </summary>
-        [DataMember(DataMemberMode.Assign)]
         [InlineProperty, MemberRequired]
         [MemberYamlSerializer(typeof(ObjectSerializer))]
         public TData Data { get; set; }
