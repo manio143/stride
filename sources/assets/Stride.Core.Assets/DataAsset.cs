@@ -1,6 +1,4 @@
 using Stride.Core.Annotations;
-using Stride.Core.Yaml.Serialization;
-using Stride.Core.Yaml.Serialization.Serializers;
 
 namespace Stride.Core.Assets
 {
@@ -16,10 +14,16 @@ namespace Stride.Core.Assets
         public const string FileExtension = ".sddata";
 
         /// <summary>
-        /// Value of the associated data.
+        /// Design time data for <see cref="TData"/>.
         /// </summary>
         [InlineProperty, MemberRequired]
-        [MemberYamlSerializer(typeof(ObjectSerializer))]
-        public TData Data { get; set; }
+        public IDataAssetDesign<TData> Data { get; set; }
+
+        /// <summary>
+        /// Instance of <see cref="IDataAssetConverter{TData}"/> that should be used to convert design time data into runtime data.
+        /// </summary>
+        /// <userdoc>Instance of IDataAssetConverter that should be used to convert design time data into runtime data.</userdoc>
+        [MemberRequired]
+        public IDataAssetConverter<TData> Converter { get; set; }
     }
 }

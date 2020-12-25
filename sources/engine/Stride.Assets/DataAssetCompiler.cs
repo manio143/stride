@@ -17,8 +17,8 @@ namespace Stride.Assets
         protected override void Prepare(AssetCompilerContext context, AssetItem assetItem, string targetUrlInStorage, AssetCompilerResult result)
         {
             var asset = assetItem.Asset;
-            var dataType = asset.GetType().GetGenericArguments()[0];
-            var commandType = typeof(DataAssetCommand<>).MakeGenericType(dataType);
+            var genericArgs = asset.GetType().GetGenericArguments();
+            var commandType = typeof(DataAssetCommand<>).MakeGenericType(genericArgs);
 
             var buildStep = (Command)Activator.CreateInstance(commandType, targetUrlInStorage, asset, assetItem.Package);
 
@@ -39,7 +39,9 @@ namespace Stride.Assets
         {
             var assetManager = new ContentManager(MicrothreadLocalDatabases.ProviderService);
 
-            assetManager.Save(Url, Parameters.Data);
+            var data = Parameters.Converter.Convert(Parameters.Data);
+
+            assetManager.Save(Url, data);
 
             return Task.FromResult(ResultStatus.Successful);
         }
