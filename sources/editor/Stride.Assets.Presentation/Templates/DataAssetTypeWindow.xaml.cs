@@ -5,8 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
-using Stride.Core;
-using Stride.Core.Assets.Editor.Quantum.NodePresenters.Commands;
+using Stride.Core.Assets;
 using Stride.Core.Extensions;
 
 namespace Stride.Assets.Presentation.Templates
@@ -22,6 +21,7 @@ namespace Stride.Assets.Presentation.Templates
         public DataAssetTypeWindow(string defaultName)
         {
             UserTypes = typeof(IDataAsset).GetInheritedInstantiableTypes().ToList();
+            UserTypes.AddRange(typeof(IData<>).GetGenericInstantiableTypes());
             UserTypesNames = UserTypes.Select(t => t.Name).ToList();
             
             DataContext = this;
@@ -38,6 +38,10 @@ namespace Stride.Assets.Presentation.Templates
         {
             AssetName = NameTextBox.Text;
             Type = TypeComboBox.SelectedIndex < 0 ? null : UserTypes[TypeComboBox.SelectedIndex];
+
+            if (typeof(IData<>).MakeGenericType(Type).IsAssignableFrom(Type))
+                Type = typeof(Data<>).MakeGenericType(Type);
+            
             Result = Stride.Core.Presentation.Services.DialogResult.Ok;
             Close();
         }

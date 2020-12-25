@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Stride.Core;
 using Stride.Core.Assets;
 using Stride.Core.Assets.Compiler;
 using Stride.Core.BuildEngine;
@@ -44,8 +43,16 @@ namespace Stride.Assets
             }
             if (Parameters.Converter == null)
             {
-                commandContext.Logger.Error($"DataAsset requries property '{nameof(Parameters.Converter)}' to not be null (at '{Url}').");
-                return Task.FromResult(ResultStatus.Failed);
+                if (typeof(TData).IsGenericType && typeof(TData).GetGenericTypeDefinition() == typeof(Data<>))
+                {
+                    Parameters.Converter = (IDataAssetConverter<TData>)Activator.CreateInstance(typeof(DefaultDataAssetConverter<>)
+                        .MakeGenericType(typeof(TData).GetGenericArguments()));
+                }
+                else
+                {
+                    commandContext.Logger.Error($"DataAsset requries property '{nameof(Parameters.Converter)}' to not be null (at '{Url}').");
+                    return Task.FromResult(ResultStatus.Failed);
+                }
             }
 
             var assetManager = new ContentManager(MicrothreadLocalDatabases.ProviderService);

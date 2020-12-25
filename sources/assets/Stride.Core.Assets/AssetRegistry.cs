@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Stride.Core.Assets.Analysis;
-using Stride.Core;
 using Stride.Core.Diagnostics;
 using Stride.Core.Reflection;
 using Stride.Core.Serialization.Contents;
@@ -390,6 +389,16 @@ namespace Stride.Core.Assets
 
         public static bool IsContentType(Type type)
         {
+            if (type == null)
+            {
+                return false;
+            }
+
+            if (type.IsGenericType)
+            {
+                type = type.GetGenericTypeDefinition();
+            }
+
             lock (RegistryLock)
             {
                 var currentType = type;
@@ -683,27 +692,36 @@ namespace Stride.Core.Assets
                         }
                     }
 
-                    // Register scriptable objects
+                    // Register user friendly data assets
                     if (assemblyScanTypes.Types.TryGetValue(typeof(IDataAsset), out types))
                     {
                         foreach (var type in types)
                         {
-                            if (type.GetCustomAttribute<DataContractAttribute>() == null)
-                                continue;
-                            if (type.GetCustomAttribute<ReferenceSerializerAttribute>() == null)
-                                continue;
-                            if (type.GetCustomAttribute<ContentSerializerAttribute>() == null)
-                                continue;
-
-                            List<Type> assetTypes;
-                            if (!ContentToAssetTypes.TryGetValue(type, out assetTypes))
+                            if (type.GetCustomAttribute<DataContractAttribute>() == null ||
+                                type.GetCustomAttribute<ReferenceSerializerAttribute>() == null ||
+                                type.GetCustomAttribute<ContentSerializerAttribute>() == null)
                             {
-                                assetTypes = new List<Type>();
-                                ContentToAssetTypes[type] = assetTypes;
+                                Log.Warning("An IDataAsset requires [DataContract], [ReferenceSerializer] and [ContentSerializer] attributes.");
+                                continue;
                             }
+
+                            List<Type> assetTypes = new List<Type>();
+                            ContentToAssetTypes[type] = assetTypes;
                             var assetType = typeof(DataAsset<>).MakeGenericType(type);
                             assetTypes.Add(assetType);
-                            AssetToContentTypes.Add(assetType, type);
+                            assetTypes.Add(typeof(DataAsset<>));
+                        }
+                    }
+                    if (assemblyScanTypes.Types.TryGetValue(typeof(IData<>), out types))
+                    {
+                        foreach (var type in types)
+                        {
+                            var dataType = typeof(Data<>).MakeGenericType(type);
+                            List<Type> assetTypes = new List<Type>();
+                            ContentToAssetTypes[dataType] = assetTypes;
+                            var assetType = typeof(DataAsset<>).MakeGenericType(dataType);
+                            assetTypes.Add(assetType);
+                            assetTypes.Add(typeof(DataAsset<>));
                         }
                     }
 

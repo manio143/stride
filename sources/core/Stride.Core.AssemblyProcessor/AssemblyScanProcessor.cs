@@ -178,6 +178,12 @@ namespace Stride.Core.AssemblyProcessor
                 return;
             }
 
+            if (scanType.IsGenericInstance)
+            {
+                // Generic types need to be registered under the GenericTypeDefinition
+                scanType = scanType.Resolve();
+            }
+
             assemblyScanRegistry.Register(type, scanType);
         }
     }

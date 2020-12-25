@@ -1,6 +1,6 @@
 using Stride.Core.Reflection;
 
-namespace Stride.Core
+namespace Stride.Core.Assets
 {
     /// <summary>
     /// An interface used to identify classes that can be used as a generic data asset.
