@@ -150,6 +150,11 @@ namespace Stride.Core.Assets
         /// <returns>System.String.</returns>
         public static string GetDefaultExtension(Type assetType)
         {
+            if (assetType.IsGenericType)
+            {
+                assetType = assetType.GetGenericTypeDefinition();
+            }
+
             IsAssetOrPackageType(assetType, true);
             lock (RegistryLock)
             {
@@ -188,6 +193,11 @@ namespace Stride.Core.Assets
         /// <returns>The <see cref="AssetUpgraderCollection"/> of an asset type if available, or <c>null</c> otherwise.</returns>
         public static AssetUpgraderCollection GetAssetUpgraders(Type assetType, string dependencyName)
         {
+            if (assetType.IsGenericType)
+            {
+                assetType = assetType.GetGenericTypeDefinition();
+            }
+
             IsAssetOrPackageType(assetType, true);
             lock (RegistryLock)
             {
@@ -246,6 +256,11 @@ namespace Stride.Core.Assets
 
         public static bool IsAssetTypeAlwaysMarkAsRoot(Type type)
         {
+            if (type.IsGenericType)
+            {
+                type = type.GetGenericTypeDefinition();
+            }
+
             lock (AlwaysMarkAsRootAssetTypes)
             {
                 return AlwaysMarkAsRootAssetTypes.Contains(type);

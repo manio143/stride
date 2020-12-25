@@ -37,6 +37,17 @@ namespace Stride.Assets
 
         protected override Task<ResultStatus> DoCommandOverride(ICommandContext commandContext)
         {
+            if (Parameters.Data == null)
+            {
+                commandContext.Logger.Error($"DataAsset requries property '{nameof(Parameters.Data)}' to not be null (at '{Url}').");
+                return Task.FromResult(ResultStatus.Failed);
+            }
+            if (Parameters.Converter == null)
+            {
+                commandContext.Logger.Error($"DataAsset requries property '{nameof(Parameters.Converter)}' to not be null (at '{Url}').");
+                return Task.FromResult(ResultStatus.Failed);
+            }
+
             var assetManager = new ContentManager(MicrothreadLocalDatabases.ProviderService);
 
             var data = Parameters.Converter.Convert(Parameters.Data);
