@@ -40,19 +40,6 @@ namespace Stride.Core.Yaml.Serialization
             if (!isSealed) throw new InvalidOperationException("A serializer factory selector must be sealed before being used.");
             IYamlSerializable serializer;
 
-            if (context.Properties.TryGetValue(Serializers.ObjectSerializer.MemberSerializerOverride, out var serializerType))
-            {
-                // remove override for members of what we're serializing now
-                context.Properties.Remove(Serializers.ObjectSerializer.MemberSerializerOverride);
-
-                foreach (var factory in factories)
-                {
-                    serializer = factory.TryCreate(context, typeDescriptor);
-                    if (serializer?.GetType() == serializerType)
-                        return serializer;
-                }
-            }
-
             // First try, with just a read lock
             serializerLock.EnterReadLock();
             var found = serializers.TryGetValue(typeDescriptor.Type, out serializer);
