@@ -39,7 +39,8 @@ namespace Stride.Assets.Presentation.Templates
             AssetName = NameTextBox.Text;
             Type = TypeComboBox.SelectedIndex < 0 ? null : UserTypes[TypeComboBox.SelectedIndex];
 
-            if (typeof(IData<>).MakeGenericType(Type).IsAssignableFrom(Type))
+            if (Type.GetInterfaces().Any(iface => iface.Name == "IData`1"
+                && iface.GetGenericTypeDefinition() == typeof(IData<>)))
                 Type = typeof(Data<>).MakeGenericType(Type);
             
             Result = Stride.Core.Presentation.Services.DialogResult.Ok;
