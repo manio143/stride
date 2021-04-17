@@ -3,6 +3,7 @@
 
 using System;
 using Stride.Core;
+using Stride.Core.Annotations;
 using Stride.Core.Mathematics;
 
 namespace Stride.Physics.Constraints
@@ -12,7 +13,7 @@ namespace Stride.Physics.Constraints
     /// </summary>
     [Display("Hinge")]
     [DataContract(nameof(HingeConstraintDesc))]
-    public class HingeConstraintDesc : IConstraintDesc
+    public class HingeConstraintDesc : IConstraintDesc, IRotateConstraintDesc
     {
         /// <summary>
         /// Position local to rigidbody A.
@@ -42,7 +43,7 @@ namespace Stride.Physics.Constraints
         /// Axis on which the hinge will rotate relative to body A.
         /// </userdoc>
         [Display(2)]
-        public Quaternion AxisInA { get; set; }
+        public Quaternion AxisInA { get; set; } = Quaternion.Identity;
 
         /// <summary>
         /// Axis on which the hinge will rotate relative to body B.
@@ -51,7 +52,7 @@ namespace Stride.Physics.Constraints
         /// Axis on which the hinge will rotate relative to body B.
         /// </userdoc>
         [Display(3)]
-        public Quaternion AxisInB { get; set; }
+        public Quaternion AxisInB { get; set; } = Quaternion.Identity;
 
         /// <summary>
         /// Use Axis in relation to body A. TODO: this isn't completely accurate
@@ -59,14 +60,38 @@ namespace Stride.Physics.Constraints
         [Display(8)]
         public bool UseReferenceFrameA { get; set; }
 
-        // TODO: document these
+        /// <summary>
+        /// If true there will be a limit set on the constraint.
+        /// </summary>
+        /// <remarks>
+        /// The limits are angles determining the area of freedom for the constraint,
+        /// calculated from 0 to ±PI, with 0 being at the positive Z axis of the constraint (with X being the hinge axis).
+        /// </remarks>
+        /// <userdoc>
+        /// Wheather there should be limits set on the constraint.
+        /// </userdoc>
         [Display(5)]
         public bool SetLimit { get; set; }
-        [Display(6)]
-        public float LowerLimit { get; set; } = 1;
-        [Display(7)]
-        public float UpperLimit { get; set; } = -1;
 
+        /// <summary>
+        /// Negative limit (-Pi, 0). Left handed rotation when thumb points at positive X axis of the constraint.
+        /// </summary>
+        /// <userdoc>
+        /// Negative limit (-Pi, 0), where 0 is at positive Z axis. Left handed rotation when thumb points at positive X axis of the constraint.
+        /// </userdoc>
+        [Display(6)]
+        [DataMemberRange(-Math.PI, 0, MathUtil.PiOverFour / 9, MathUtil.PiOverFour, 3)]
+        public float LowerLimit { get; set; } = -(float)Math.PI;
+
+        /// <summary>
+        /// Positive limit (0, Pi). Right handed rotation when thumb points at positive X axis of the constraint.
+        /// </summary>
+        /// /// <userdoc>
+        /// Positive limit (0, Pi), where 0 is at positive Z axis. Right handed rotation when thumb points at positive X axis of the constraint.
+        /// </userdoc>
+        [Display(7)]
+        [DataMemberRange(0, Math.PI, MathUtil.PiOverFour / 9, MathUtil.PiOverFour, 3)]
+        public float UpperLimit { get; set; } = (float)Math.PI;
 
         public Constraint Build(RigidbodyComponent rigidbodyA, RigidbodyComponent rigidbodyB)
         {

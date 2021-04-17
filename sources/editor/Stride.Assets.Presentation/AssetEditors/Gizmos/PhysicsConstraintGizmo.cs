@@ -8,6 +8,7 @@ using Stride.Engine;
 using Stride.Extensions;
 using Stride.Graphics.GeometricPrimitives;
 using Stride.Physics;
+using Stride.Physics.Constraints;
 using Stride.Rendering;
 
 namespace Stride.Assets.Presentation.AssetEditors.Gizmos
@@ -17,6 +18,9 @@ namespace Stride.Assets.Presentation.AssetEditors.Gizmos
     {
         private static readonly Color OrangeUniformColor = new Color(0xFF, 0x98, 0x2B);
         private static readonly Color PurpleUniformColor = new Color(0xB1, 0x24, 0xF2);
+
+        private MeshDraw CenterSphereMesh;
+        private MeshDraw CyliderAxisMesh;
 
         private PivotMarker PivotA;
         private PivotMarker PivotB;
@@ -30,17 +34,9 @@ namespace Stride.Assets.Presentation.AssetEditors.Gizmos
         {
             // We want to scale pivots with the zoom. There's two of them, so we'll let
             // base.Update to set scale on this empty entity and later copy it over.
-            GizmoScalingEntity = new Entity();
-            
-            return new Entity($"Physics Constraint Gizmo Root Entity (id={ContentEntity.Id})");
-        }
+            GizmoScalingEntity = new Entity($"{ContentEntity.Name}_gizmo_scale");
 
-        protected override void Destroy()
-        {
-            if (PivotA.Entity != null)
-                PivotA.Entity.Scene = null;
-            if (PivotB.Entity != null)
-                PivotB.Entity.Scene = null;
+            return new Entity($"Physics Constraint Gizmo Root Entity (id={ContentEntity.Id})");
         }
 
         public override void Update()
@@ -49,16 +45,33 @@ namespace Stride.Assets.Presentation.AssetEditors.Gizmos
 
             if (Component.Description == null || !IsEnabled || !IsSelected)
             {
-                if (PivotA.Model != null)
-                    PivotA.Model.Enabled = false;
-                if (PivotB.Model != null)
-                    PivotB.Model.Enabled = false;
-
+                PivotA.Enable(false);
+                PivotB.Enable(false);
                 return;
             }
 
-            UpdatePivot(ref PivotA, Component.BodyA, Component.Description.PivotInA, OrangeUniformColor, "PivotInA");
-            UpdatePivot(ref PivotB, Component.BodyB, Component.Description.PivotInB, PurpleUniformColor, "PivotInB");
+            // reset root entity state, because we determine world positions of pivot entities below
+            GizmoRootEntity.Transform.Position = Vector3.Zero;
+            GizmoRootEntity.Transform.Rotation = Quaternion.Zero;
+            
+            UpdateConstraintRotation();
+
+            UpdatePivot(ref PivotA, Component.BodyA, Component.Description.PivotInA, OrangeUniformColor, $"{ContentEntity.Name}_PivotInA");
+            UpdatePivot(ref PivotB, Component.BodyB, Component.Description.PivotInB, PurpleUniformColor, $"{ContentEntity.Name}_PivotInB");
+        }
+
+        private void UpdateConstraintRotation()
+        {
+            if (Component.Description is IRotateConstraintDesc rotateDesc)
+            {
+                PivotA.ConstraintRotation = rotateDesc.AxisInA;
+                PivotB.ConstraintRotation = rotateDesc.AxisInB;
+            }
+            else
+            {
+                PivotA.ConstraintRotation = Quaternion.Identity;
+                PivotB.ConstraintRotation = Quaternion.Identity;
+            }
         }
 
         private void UpdatePivot(
@@ -70,8 +83,7 @@ namespace Stride.Assets.Presentation.AssetEditors.Gizmos
         {
             if (rigidbody == null)
             {
-                if (pivotMarker.Model != null)
-                    pivotMarker.Model.Enabled = false;
+                pivotMarker.Enable(false);
 
                 return;
             }
@@ -79,18 +91,20 @@ namespace Stride.Assets.Presentation.AssetEditors.Gizmos
             // First we create a debug entity which will be reused by any rigidbody referenced
             if (pivotMarker.Entity == null)
             {
-                var sphere = GeometricPrimitive.Sphere.New(GraphicsDevice, 0.05f, 16).ToMeshDraw();
+                CenterSphereMesh ??= GeometricPrimitive.Sphere.New(GraphicsDevice, 0.01f, 16).ToMeshDraw();
+                CyliderAxisMesh ??= GeometricPrimitive.Cylinder.New(GraphicsDevice, 0.3f, 0.005f, 16).ToMeshDraw();
+
                 var material = GizmoUniformColorMaterial.Create(GraphicsDevice, markerColor, false);
+                var materialNeg = GizmoUniformColorMaterial.Create(GraphicsDevice, Color.Negate(markerColor), false);
 
                 pivotMarker.Entity = new Entity(entityName);
-                pivotMarker.Model = new ModelComponent
-                {
-                    Model = new Model { material, new Mesh { Draw = sphere } },
-                    RenderGroup = RenderGroup,
-                };
-
-
-                pivotMarker.Entity.Add(pivotMarker.Model);
+                this.AddModelEntity(ref pivotMarker, "Center", CenterSphereMesh, material);
+                this.AddModelEntity(ref pivotMarker, "Y", CyliderAxisMesh, material);
+                this.AddModelEntity(ref pivotMarker, "X", CyliderAxisMesh, materialNeg, Quaternion.RotationAxis(Vector3.UnitZ, MathUtil.PiOverTwo));
+                this.AddModelEntity(ref pivotMarker, "Z", CyliderAxisMesh, material, Quaternion.RotationAxis(Vector3.UnitX, MathUtil.PiOverTwo));
+                this.AddModelEntity(ref pivotMarker, "Yend", CenterSphereMesh, material, position: 0.15f * Vector3.UnitY);
+                this.AddModelEntity(ref pivotMarker, "Xend", CenterSphereMesh, material, position: 0.15f * Vector3.UnitX);
+                this.AddModelEntity(ref pivotMarker, "Zend", CenterSphereMesh, materialNeg, position: 0.15f * Vector3.UnitZ);
 
                 //var physicsComponent = new StaticColliderComponent
                 //{
@@ -101,7 +115,9 @@ namespace Stride.Assets.Presentation.AssetEditors.Gizmos
 
                 // adding entity into the scene will cause the physics component to get picked up by the processor,
                 // which we need for the AddDebugEntity call
-                EditorScene.Entities.Add(pivotMarker.Entity);
+
+                //EditorScene.Entities.Add(pivotMarker.Entity);
+                this.GizmoRootEntity.AddChild(pivotMarker.Entity);
 
                 //physicsComponent.AddDebugEntity(EditorScene, RenderGroup, true);
                 //pivotMarker.Model = physicsComponent.DebugEntity.GetChild(0).Get<ModelComponent>();
@@ -115,20 +131,46 @@ namespace Stride.Assets.Presentation.AssetEditors.Gizmos
             rigidbody.Entity.Transform.WorldMatrix.Decompose(out _, out Quaternion rotation, out var position);
             rotation.Rotate(ref pivot);
             pivotMarker.Entity.Transform.Position = position + pivot;
+            pivotMarker.Entity.Transform.Rotation = pivotMarker.ConstraintRotation * rotation; // ???
 
             // we want the pivot marker to keep the same size irrespective of the scale of the rigidbody
             //rigidbody.Entity.Transform.WorldMatrix.Decompose(out var parentWorldScale, out _);
             var targetScale = GizmoScalingEntity.Transform.Scale;
-            pivotMarker.Entity.Transform.Scale = targetScale;// / parentWorldScale;
+            pivotMarker.Entity.Transform.Scale = targetScale; // / parentWorldScale;
 
             // and ensure the model is enabled
-            pivotMarker.Model.Enabled = true;
+            pivotMarker.Enable(true);
+        }
+
+        private void AddModelEntity(ref PivotMarker pivotMarker, string suffix, MeshDraw mesh, Material material, Quaternion rotation = default, Vector3 position = default)
+        {
+            var entity = new Entity($"{pivotMarker.Entity.Name}_Model_{suffix}");
+            entity.Transform.Position = position;
+            entity.Transform.Rotation = rotation;
+            entity.Add(new ModelComponent
+            {
+                Model = new Model { material, new Mesh { Draw = mesh } },
+                RenderGroup = RenderGroup,
+            });
+
+            pivotMarker.Entity.AddChild(entity);
         }
 
         private struct PivotMarker
         {
             public Entity Entity;
-            public ModelComponent Model;
+            public Quaternion ConstraintRotation;
+            
+            /// <summary>
+            /// Enable components in child entities - models.
+            /// </summary>
+            public void Enable(bool enabled)
+            {
+                if (Entity == null) return;
+
+                foreach (var child in this.Entity.GetChildren())
+                    child.EnableAll(enabled);
+            }
         }
     }
 }
