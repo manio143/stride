@@ -132,7 +132,7 @@ Example of use:
     <CallTarget Targets="RestoreInternal" />
   </Target>
 
-  <Target Name="Build">
+  <Target Name="Build" DependsOnTargets="PreparePackageBuild">
     <MSBuild Targets="Restore" Projects="$(MSBuildThisFileFullPath)" Properties="StridePlatforms=$(StridePlatforms);StrideSolution=$(StrideSolution);StrideGraphicsApiDependentBuildAll=$(StrideGraphicsApiDependentBuildAll)"/>
     <MSBuild Targets="Build" Projects="$(StrideSolution).sln" Properties="$(BuildProperties);Platform=Mixed Platforms"/>
   </Target>
