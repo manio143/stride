@@ -7,7 +7,4 @@
   <PropertyGroup Condition="'$(StridePlatform)' == 'Windows'">
     <StrideGraphicsApis Condition="'$(StrideGraphicsApis)' == ''">Direct3D11</StrideGraphicsApis>
   </PropertyGroup>
-  <PropertyGroup>
-    <RepositoryUrl>https://github.com/manio143/stride</RepositoryUrl>
-  </PropertyGroup>
 </Project>
